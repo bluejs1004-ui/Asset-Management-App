@@ -1,0 +1,20 @@
+/* Pretendard Variable - local/offline font
+ * Copyright (c) 2021 Kil Hyung-jin
+ * Licensed under the SIL Open Font License, Version 1.1.
+ */
+@font-face {
+  font-family: "Pretendard Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 45 920;
+  src: url("./fonts/PretendardVariable.woff2") format("woff2-variations");
+}
+
+/* Compatibility aliases used by common Pretendard CSS integrations. */
+@font-face {
+  font-family: Pretendard;
+  font-style: normal;
+  font-display: swap;
+  font-weight: 45 920;
+  src: url("./fonts/PretendardVariable.woff2") format("woff2-variations");
+}

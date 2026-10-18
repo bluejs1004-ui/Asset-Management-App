@@ -31,6 +31,7 @@ jobs:
         run: |
           mkdir -p public/offline
           cp index.html Asset_Management_System.html public/
+          cp version.json public/
           cp -R offline/. public/offline/
 
       - name: Configure Pages

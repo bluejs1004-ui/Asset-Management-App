@@ -1,0 +1,19 @@
+/.gradle/
+/build/
+/app/build/
+/app/src/main/java/
+/app/src/main/assets/
+/release.keystore
+*.jks
+*.keystore
+local.properties
+
+# Android Studio project generated files
+AndroidStudioProjects/Assets/.gradle/
+AndroidStudioProjects/Assets/.idea/
+AndroidStudioProjects/Assets/build/
+AndroidStudioProjects/Assets/app/build/
+AndroidStudioProjects/Assets/app/local.properties
+AndroidStudioProjects/Assets/release.keystore
+.gradle-user-home/
+AndroidStudioProjects/Assets/.kotlin/

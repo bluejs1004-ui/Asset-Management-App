@@ -5667,6 +5667,77 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
         if (modal) modal.classList.add('hidden');
     };
     window.triggerImport = function() { document.getElementById('importFile').click(); };
+    var ASSET_APP_VERSION = '4.8.0';
+    var ASSET_RELEASE_URL = 'https://github.com/bluejs1004-ui/Asset-Management-App/releases/latest';
+    window.getAssetAppVersion = function() {
+        try {
+            if (window.AndroidBridge && typeof window.AndroidBridge.getAppVersion === 'function') {
+                return window.AndroidBridge.getAppVersion() || ASSET_APP_VERSION;
+            }
+        } catch (e) {}
+        return ASSET_APP_VERSION;
+    };
+    window.closeAppManagementModal = function() {
+        var modal = document.getElementById('appManagementModal');
+        if (modal) modal.classList.add('hidden');
+    };
+    window.setAppManagementStatus = function(message, tone) {
+        var node = document.getElementById('appManagementStatus');
+        if (!node) return;
+        node.textContent = message || '';
+        node.className = 'mt-3 text-xs leading-relaxed ' + (tone === 'success' ? 'text-emerald-400' : tone === 'error' ? 'text-rose-400' : 'text-neutral-400');
+    };
+    window.compareAssetVersions = function(left, right) {
+        var a = String(left || '').match(/\d+/g) || [0];
+        var b = String(right || '').match(/\d+/g) || [0];
+        for (var i = 0; i < Math.max(a.length, b.length, 3); i++) {
+            var av = Number(a[i] || 0), bv = Number(b[i] || 0);
+            if (av !== bv) return av - bv;
+        }
+        return 0;
+    };
+    window.checkAssetAppVersion = async function() {
+        var current = window.getAssetAppVersion();
+        var currentNode = document.getElementById('appManagementCurrentVersion');
+        var latestNode = document.getElementById('appManagementLatestVersion');
+        var updateBtn = document.getElementById('appManagementUpdateBtn');
+        if (currentNode) currentNode.textContent = '현재 버전: v' + current;
+        if (latestNode) latestNode.textContent = '최신 버전 확인 중...';
+        window.setAppManagementStatus('GitHub에서 최신 버전을 확인하고 있습니다.', 'normal');
+        try {
+            var response = await fetch('./version.json?ts=' + Date.now(), { cache: 'no-store' });
+            if (!response.ok) throw new Error('version.json HTTP ' + response.status);
+            var info = await response.json();
+            var latest = String(info.latestVersion || '').replace(/^v/i, '').trim();
+            if (!latest) throw new Error('최신 버전 정보가 없습니다.');
+            if (latestNode) latestNode.textContent = '최신 버전: v' + latest;
+            var newer = window.compareAssetVersions(latest, current) > 0;
+            if (updateBtn) {
+                updateBtn.classList.toggle('hidden', !newer && !!window.AndroidBridge);
+                updateBtn.textContent = newer ? '최신 버전으로 업데이트' : '최신 버전 다시 확인';
+            }
+            window.setAppManagementStatus(newer ? '새 버전이 있습니다. 업데이트 버튼을 눌러 진행하세요.' : '현재 최신 버전을 사용하고 있습니다.', newer ? 'success' : 'normal');
+        } catch (error) {
+            if (latestNode) latestNode.textContent = '최신 버전 확인 실패';
+            if (updateBtn) { updateBtn.classList.remove('hidden'); updateBtn.textContent = 'GitHub Release 열기'; }
+            window.setAppManagementStatus('버전 확인에 실패했습니다. 네트워크 연결을 확인하거나 GitHub Release를 열어주세요.', 'error');
+        }
+    };
+    window.updateAssetApp = function() {
+        if (window.AndroidBridge && typeof window.AndroidBridge.checkForUpdates === 'function') {
+            window.AndroidBridge.checkForUpdates();
+            return;
+        }
+        window.open(ASSET_RELEASE_URL, '_blank', 'noopener,noreferrer');
+    };
+    window.openAppManagementModal = function() {
+        window.hideSettingsMenu();
+        var modal = document.getElementById('appManagementModal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        window.checkAssetAppVersion();
+    };
+
     window.openGithubWebVersion = function() {
         var url = 'https://bluejs1004-ui.github.io/Asset-Management-App/';
         if (window.AndroidBridge && typeof window.AndroidBridge.openGithubWeb === 'function') {
@@ -18715,6 +18786,7 @@ else restoreInitialAIPanels();
                             <button data-menu-item-id="accountManage" onclick="window.openAccountModal()" class="w-full text-left px-4 py-3 text-sm text-neutral-200 hover:bg-white/5 border-b border-white-5 flex items-center gap-2 font-medium transition-colors"><i class="icon text-emerald-400">credit_card</i>계좌 관리</button>
                             <button data-menu-item-id="tickerLink" onclick="window.openTickerModal()" class="w-full text-left px-4 py-3 text-sm text-neutral-200 hover:bg-white/5 border-b border-white-5 flex items-center gap-2 font-medium transition-colors"><i class="icon text-amber-500">settings</i>종목 코드 연동</button>
                             <button data-menu-item-id="dataManage" onclick="window.openDataManagementModal()" class="w-full text-left px-4 py-3 text-sm text-neutral-200 hover:bg-white/5 border-b border-white-5 flex items-center gap-2 font-medium transition-colors"><i class="icon text-cyan-400">folder_managed</i>데이터 관리</button>
+                            <button data-menu-item-id="appManage" onclick="window.openAppManagementModal()" class="w-full text-left px-4 py-3 text-sm text-neutral-200 hover:bg-white/5 border-b border-white-5 flex items-center gap-2 font-medium transition-colors"><i class="icon text-blue-400">system_update</i>앱 관리</button>
                             <button data-menu-item-id="taxCalc" onclick="window.openTaxModal()" class="w-full text-left px-4 py-3 text-sm text-neutral-200 hover:bg-white/5 border-b border-white-5 flex items-center gap-2 font-medium transition-colors"><i class="icon text-rose-400">calculate</i>양도세 계산기</button>
                             <button data-menu-item-id="demoData" onclick="window.loadDemoData()" class="w-full text-left px-4 py-3 text-sm text-neutral-200 hover:bg-white/5 flex items-center gap-2 font-medium transition-colors"><i class="icon text-cyan-400">science</i>샘플 데이터 체험</button>
                         </div>
@@ -28553,5 +28625,22 @@ body.light-mode ::-webkit-scrollbar-thumb{background:#cbd5e1}
     installAssetPopupClosers();
 })();
 </script>
+    <div id="appManagementModal" class="hidden fixed inset-0 z-[250] p-4 flex items-center justify-center bg-black/70 backdrop-blur-sm" onclick="if (event.target === this) window.closeAppManagementModal()">
+        <div class="modern-card w-full max-w-md rounded-2xl border border-white/10 bg-[#18181b] shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/10">
+                <h2 class="text-lg font-extrabold text-white flex items-center gap-2"><i class="icon text-blue-400">system_update</i>앱 관리</h2>
+                <button type="button" onclick="window.closeAppManagementModal()" class="text-neutral-400 hover:text-white text-3xl leading-none px-1" aria-label="앱 관리 닫기">&times;</button>
+            </div>
+            <div class="p-5">
+                <p id="appManagementCurrentVersion" class="text-sm text-neutral-200 font-bold">현재 버전 확인 중...</p>
+                <p id="appManagementLatestVersion" class="mt-2 text-sm text-neutral-400">최신 버전 확인 중...</p>
+                <p id="appManagementStatus" class="mt-3 text-xs leading-relaxed text-neutral-400" aria-live="polite"></p>
+                <div class="mt-5 flex gap-2">
+                    <button id="appManagementUpdateBtn" type="button" onclick="window.updateAssetApp()" class="hidden flex-1 rounded-xl bg-blue-500/15 border border-blue-400/30 px-4 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/25 transition-colors">최신 버전으로 업데이트</button>
+                    <button type="button" onclick="window.checkAssetAppVersion()" class="rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-neutral-300 hover:bg-white/5 transition-colors">버전 확인</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

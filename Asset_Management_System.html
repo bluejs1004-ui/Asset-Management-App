@@ -5667,7 +5667,7 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
         if (modal) modal.classList.add('hidden');
     };
     window.triggerImport = function() { document.getElementById('importFile').click(); };
-    var ASSET_APP_VERSION = '4.8.1';
+    var ASSET_APP_VERSION = '4.8.2';
     var ASSET_RELEASE_URL = 'https://github.com/bluejs1004-ui/Asset-Management-App/releases/latest';
     window.getAssetAppVersion = function() {
         try {
@@ -14719,7 +14719,11 @@ window.renderTotalAssetChart = async function() {
         // 과거 데이터가 충분히 캐시되어 있으면 앱 재실행·기간 변경 때 전체 동기화를 반복하지 않는다.
         // 오늘 날짜가 바뀌어도 마지막 시계열 값은 현재가로 덮어쓰므로, 이력 캐시는 보유량 기준으로 재사용한다.
         var cachedDates = cachedHistory ? Object.keys(cachedHistory).filter(function(d) { return d >= coverageFromStr && d <= todayStr; }) : [];
-        var hasCoverage = cachedDates.length >= Math.max(8, Math.floor(count * 0.5));
+        window.__totalChartHistoryFetched = window.__totalChartHistoryFetched || {};
+        // 상장 기간이 짧거나 시세가 없는 종목은 캐시가 영원히 기준에 못 미치므로,
+        // 이번 실행에서 이미 같은 규모로 조회했다면 다시 조회하지 않는다. (앱을 다시 켜면 빈 구간은 다시 채운다)
+        var fetchedThisRun = window.__totalChartHistoryFetched[chartCode] >= Math.max(count, 260);
+        var hasCoverage = fetchedThisRun || cachedDates.length >= Math.max(8, Math.floor(count * 0.5));
         if (!hasCoverage) {
             fetchNeededCodes.push(chartCode);
         } else {
@@ -14728,6 +14732,11 @@ window.renderTotalAssetChart = async function() {
     }
 
     window.updateTotalAssetChartUI(cutoff, uniqueStocks);
+    // 과거 시세 동기화가 오래 걸려도 KOSPI·S&P500 동일투자는 먼저 붙인다.
+    var benchEpochAtRender = window.__totalChartRangeEpoch || 0;
+    if (typeof window.applyBenchmarkOverlay === 'function') {
+        Promise.resolve(window.applyBenchmarkOverlay(benchEpochAtRender)).catch(function() {});
+    }
 
     if (fetchNeededCodes.length > 0) {
         window.isFetchingTotalChart = true;
@@ -14752,6 +14761,8 @@ window.renderTotalAssetChart = async function() {
                     var fetchCode = fetchNeededCodes[fetchIndex];
                     try { await window.fetchStockHistory(fetchCode, Math.max(count, 260)); } catch (e) {}
                     window.__totalChartHistoryAttempts[fetchCode] = true;
+                    window.__totalChartHistoryFetched = window.__totalChartHistoryFetched || {};
+                    window.__totalChartHistoryFetched[fetchCode] = Math.max(count, 260);
                     completedFetches++;
                     if (summaryEl) summaryEl.innerText = '(과거 데이터 동기화 중... ' + completedFetches + '/' + fetchNeededCodes.length + ')';
                 }
@@ -14764,6 +14775,10 @@ window.renderTotalAssetChart = async function() {
             // 기간 버튼을 다시 누른 동안 끝난 이전 요청은 현재 화면을 덮어쓰지 않는다.
             if (renderRequestId === window.__totalChartRequestSeq) {
                 window.updateTotalAssetChartUI(cutoff, uniqueStocks);
+                // updateTotalAssetChartUI는 이전 벤치마크 데이터셋을 지우므로 다시 붙인다.
+                if (typeof window.applyBenchmarkOverlay === 'function') {
+                    Promise.resolve(window.applyBenchmarkOverlay(benchEpochAtRender)).catch(function() {});
+                }
             }
             window.persistTotalChartCache();
             window.persistTotalChartHistoryAttempts(todayStr);
@@ -15629,8 +15644,16 @@ window.applyBenchmarkOverlay = async function(expectedRangeEpoch) {
         var h = window.tradeHistory[i];
         if (!accActive(h.account)) continue;
         if (window.isNonStockTransaction && window.isNonStockTransaction(h)) continue;
-        var flowAmt = toKRW(h.shares * h.price, h.currency);
-        flows.push({ date: h.date, amt: (h.type === '매수' ? flowAmt : -flowAmt) });
+         if (h.type !== '매수' && h.type !== '매도') continue;
+         var flowAmt = toKRW((parseFloat(String(h.shares).replace(/,/g, '')) || 0) * (parseFloat(String(h.price).replace(/,/g, '')) || 0), h.currency);
+         // 수량·가격이 비었거나 숫자가 아닌 거래 하나가 동일투자 전체를 NaN으로 만들지 않게 건너뛴다.
+         if (!isFinite(flowAmt) || flowAmt <= 0) continue;
+         // 동일투자는 차트의 YYYY-MM-DD 라벨과 거래일을 비교한다.
+         // ISO 시간까지 포함된 거래일을 그대로 비교하면 "2026-10-12T..."
+         // 가 "2026-10-12"보다 커져 해당 거래가 지수 매수 단위에 반영되지 않는다.
+         var flowDate = window.__assetDateKey ? window.__assetDateKey(h.date) : String(h.date || '').slice(0, 10);
+         if (!flowDate || !/^\d{4}-\d{2}-\d{2}$/.test(flowDate)) continue;
+         flows.push({ date: flowDate, amt: (h.type === '매수' ? flowAmt : -flowAmt) });
     }
     flows.sort(function(a,b){ return new Date(a.date) - new Date(b.date); });
 

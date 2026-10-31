@@ -1,5 +1,5 @@
 {
-  "latestVersion": "4.8.1",
-  "downloadUrl": "https://github.com/bluejs1004-ui/Asset-Management-App/releases/download/v4.8.1/Asset_v4.8.1.apk",
-  "changelog": "v4.8.1 자산 추이 누락 보정 및 외국인·기관 수급 API 수정"
+  "latestVersion": "4.8.2",
+  "downloadUrl": "https://github.com/bluejs1004-ui/Asset-Management-App/releases/download/v4.8.2/Asset_v4.8.2.apk",
+  "changelog": "v4.8.2 KOSPI·S&P500 동일투자 차트 복구"
 }

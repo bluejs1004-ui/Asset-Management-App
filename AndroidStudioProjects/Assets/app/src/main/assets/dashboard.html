@@ -4133,6 +4133,8 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
         window.currentPriceSourceMap = {};
         // NXT 시세 사용 여부. 기존 동작을 유지하도록 기본값은 ON이다.
         window.useNxtPrices = true;
+        // KRX 종가 적용 여부. ON이면 한국시간 15:30 이후에는 NXT·시간외가 대신 그날 KRX 종가를 반영한다.
+        window.useKrxClosePrice = false;
         window.stockNotes = [];
         // 현금 거래는 주식 거래와 같은 이력 저장소를 사용하되, 별도 자산으로 식별한다.
         // 입금·출금의 shares 값은 '수량'이 아니라 선택 통화의 현금 금액이다.
@@ -4652,6 +4654,11 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
                         var nxtToggle = document.getElementById('nxtPriceToggle');
                         if(nxtToggle) nxtToggle.checked = window.useNxtPrices;
                     }
+                    if(uiSettings.useKrxClosePrice !== undefined) {
+                        window.useKrxClosePrice = uiSettings.useKrxClosePrice === true;
+                        var krxCloseToggleEl = document.getElementById('krxCloseToggle');
+                        if(krxCloseToggleEl) krxCloseToggleEl.checked = window.useKrxClosePrice;
+                    }
                     if(uiSettings.customPrices) {
                         window.savedCustomPrices = uiSettings.customPrices;
                     }
@@ -4874,6 +4881,9 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
                 var nxtToggle = document.getElementById('nxtPriceToggle');
                 var useNxtPrices = nxtToggle ? nxtToggle.checked : window.useNxtPrices !== false;
                 window.useNxtPrices = useNxtPrices;
+                var krxCloseToggleSave = document.getElementById('krxCloseToggle');
+                var useKrxClosePrice = krxCloseToggleSave ? krxCloseToggleSave.checked : window.useKrxClosePrice === true;
+                window.useKrxClosePrice = useKrxClosePrice;
 
                 var currentPrices = {};
                 for(var i=0; i<window.portfolio.length; i++) {
@@ -4897,6 +4907,7 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
                     kakaoDateFilter: kakaoDate ? kakaoDate.value : '',
                     exchangeRate: exchangeRateInput ? exchangeRateInput.value : 1350,
                     useNxtPrices: useNxtPrices,
+                    useKrxClosePrice: useKrxClosePrice,
                     customPrices: currentPrices
                 };
                 localStorage.setItem('v55_ui_settings', JSON.stringify(settings));
@@ -5667,7 +5678,7 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
         if (modal) modal.classList.add('hidden');
     };
     window.triggerImport = function() { document.getElementById('importFile').click(); };
-    var ASSET_APP_VERSION = '4.8.2';
+    var ASSET_APP_VERSION = '4.8.4';
     var ASSET_RELEASE_URL = 'https://github.com/bluejs1004-ui/Asset-Management-App/releases/latest';
     window.getAssetAppVersion = function() {
         try {
@@ -6057,6 +6068,30 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
         }
     };
 
+    // 한국시간(KST) 기준 분 단위 시각. 기기 시간대와 무관하게 계산한다.
+    window.getKstMinutesOfDay = function() {
+        var kst = new Date(Date.now() + 9 * 3600000);
+        return kst.getUTCHours() * 60 + kst.getUTCMinutes();
+    };
+    // 'KRX 종가 적용'이 켜져 있고 정규장 마감(15:30) 이후이면 true.
+    window.isKrxCloseApplied = function() {
+        var toggle = document.getElementById('krxCloseToggle');
+        var on = toggle ? toggle.checked : window.useKrxClosePrice === true;
+        return on && window.getKstMinutesOfDay() >= 15 * 60 + 30;
+    };
+    window.toggleKrxClosePrice = function() {
+        var toggle = document.getElementById('krxCloseToggle');
+        window.useKrxClosePrice = toggle ? toggle.checked : false;
+        window.saveUISettings();
+
+        // 종가 적용 여부가 바뀌면 즉시 평가금액과 수익률에 반영되도록 시세를 다시 조회한다.
+        if (typeof window.syncNaverPrices === 'function') {
+            window.syncNaverPrices();
+        } else {
+            window.renderApp();
+        }
+    };
+
     window.hideSettingsMenu = function() {
         var menu = document.getElementById('globalSettingsMenu');
         if(menu && !menu.classList.contains('hidden')) { menu.classList.add('hidden'); }
@@ -6082,7 +6117,8 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
         themeMode: { icon: 'light_mode', color: 'text-amber-400', label: '라이트 모드', type: 'toggle', checkboxId: 'themeModeToggle' },
         neutralMode: { icon: 'tonality', color: 'text-neutral-300', label: '무채색 모드', type: 'toggle', checkboxId: 'themeModeNeutralToggle' },
         currencyKrw: { icon: 'currency_exchange', color: 'text-emerald-400', label: '원화/달러', type: 'toggle', checkboxId: 'currencyToggleKrw' },
-        nxtPrice: { icon: 'show_chart', color: 'text-cyan-400', label: 'NXT 시세 사용', type: 'toggle', checkboxId: 'nxtPriceToggle' }
+        nxtPrice: { icon: 'show_chart', color: 'text-cyan-400', label: 'NXT 시세 사용', type: 'toggle', checkboxId: 'nxtPriceToggle' },
+        krxClose: { icon: 'event_available', color: 'text-amber-400', label: 'KRX 종가 적용', type: 'toggle', checkboxId: 'krxCloseToggle' }
     };
 
     window.pinnedMenuItems = [];
@@ -10607,6 +10643,8 @@ window.updateModalStats = function() {
         var nxtToggle = document.getElementById('nxtPriceToggle');
         if (nxtToggle) useNxtPrices = nxtToggle.checked;
         window.useNxtPrices = useNxtPrices;
+        // 'KRX 종가 적용' ON + 15:30(KST) 이후: NXT·시간외 가격 대신 그날 KRX 종가(nv)를 반영한다.
+        var krxCloseNow = typeof window.isKrxCloseApplied === 'function' && window.isKrxCloseApplied();
 
         var btn = document.getElementById('syncBtn');
         var originalHtml = btn.innerHTML;
@@ -10870,7 +10908,7 @@ window.updateModalStats = function() {
                         if (typeof nxtInfo === 'string') {
                             try { nxtInfo = JSON.parse(nxtInfo); } catch (nxtParseError) { nxtInfo = null; }
                         }
-                        if (useNxtPrices && nxtInfo && typeof nxtInfo === 'object') {
+                        if (useNxtPrices && !krxCloseNow && nxtInfo && typeof nxtInfo === 'object') {
                             var nxtPrice = parseFloat(String(nxtInfo.overPrice == null ? '' : nxtInfo.overPrice).replace(/,/g, ''));
                             // CLOSE/CLOSED 상태는 NXT 종가가 확정된 상태일 수 있으므로
                             // NXT 사용 ON일 때는 상태와 관계없이 유효한 overPrice를 사용한다.
@@ -18823,6 +18861,13 @@ else restoreInitialAIPanels();
                                 <span class="text-sm text-neutral-200 font-medium flex items-center pr-3"><i class="icon text-cyan-400 mr-2">show_chart</i>NXT 시세 사용</span>
                                 <div class="relative inline-flex items-center cursor-pointer shrink-0">
                                     <input type="checkbox" id="nxtPriceToggle" checked onchange="window.toggleNxtPrice(); window.renderTopBarPinned();" class="sr-only peer">
+                                    <div class="w-8 h-4 bg-neutral-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-cyan-500"></div>
+                                </div>
+                            </label>
+                            <label data-menu-item-id="krxClose" class="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white-5 flex justify-between items-center cursor-pointer transition-colors" onclick="event.stopPropagation()">
+                                <span class="text-sm text-neutral-200 font-medium flex items-center pr-3"><i class="icon text-amber-400 mr-2">event_available</i>KRX 종가 적용</span>
+                                <div class="relative inline-flex items-center cursor-pointer shrink-0">
+                                    <input type="checkbox" id="krxCloseToggle" onchange="window.toggleKrxClosePrice(); window.renderTopBarPinned();" class="sr-only peer">
                                     <div class="w-8 h-4 bg-neutral-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-cyan-500"></div>
                                 </div>
                             </label>

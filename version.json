@@ -1,5 +1,5 @@
 {
-  "latestVersion": "4.8.2",
-  "downloadUrl": "https://github.com/bluejs1004-ui/Asset-Management-App/releases/download/v4.8.2/Asset_v4.8.2.apk",
-  "changelog": "v4.8.2 KOSPI·S&P500 동일투자 차트 복구"
+  "latestVersion": "4.8.4",
+  "downloadUrl": "https://github.com/bluejs1004-ui/Asset-Management-App/releases/download/v4.8.4/Asset_v4.8.4.apk",
+  "changelog": "v4.8.4 KRX 종가 적용 및 KOSPI·S&P500 동일투자 차트 개선"
 }

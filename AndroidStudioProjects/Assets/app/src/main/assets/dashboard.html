@@ -5667,7 +5667,7 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
         if (modal) modal.classList.add('hidden');
     };
     window.triggerImport = function() { document.getElementById('importFile').click(); };
-    var ASSET_APP_VERSION = '4.8.0';
+    var ASSET_APP_VERSION = '4.8.1';
     var ASSET_RELEASE_URL = 'https://github.com/bluejs1004-ui/Asset-Management-App/releases/latest';
     window.getAssetAppVersion = function() {
         try {
@@ -14136,6 +14136,15 @@ if (typeof Chart !== 'undefined' && !window.__legendAutoSyncRegistered) {
 // 홈탭은 차트를 지연 생성하므로(__totalChartDirty) 차트에서 값을 읽을 수 없어,
 // tradeHistory + historicalPriceCache 만으로 독립 실행되도록 분리한다.
 // 반환: { labels, evalData, investData, rateData } (주말 제외, 가격은 마지막 확인가로 전진 채움)
+window.__assetDateKey = function(value) {
+    var raw = String(value == null ? '' : value).trim();
+    var m = raw.match(/^(20\d\d)[-./]?(\d\d)[-./]?(\d\d)/);
+    if (m) return m[1] + '-' + m[2] + '-' + m[3];
+    var d = new Date(value);
+    if (isNaN(d.getTime())) return '';
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+};
+
 window.buildAssetDailySeries = function(cutoff, uniqueStocks) {
     window.restoreTotalChartCache();
     var today = new Date();
@@ -14162,20 +14171,22 @@ window.buildAssetDailySeries = function(cutoff, uniqueStocks) {
         var t = window.tradeHistory[i];
         if (window.accActive && !window.accActive(t.account)) continue;
         if (window.isNonStockTransaction && window.isNonStockTransaction(t)) continue;
-        var d = new Date(t.date);
+        var d = new Date((window.__assetDateKey(t.date) || t.date) + 'T00:00:00');
         if (!minDateObj || d < minDateObj) minDateObj = d;
     }
     if (!minDateObj) minDateObj = new Date(today);
     var startDate = minDateObj > cutoff ? minDateObj : cutoff;
     if (startDate > today) startDate = today;
 
-    var sortedHist = window.tradeHistory.slice().sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+    var sortedHist = window.tradeHistory.slice().sort(function(a, b) {
+        return String(window.__assetDateKey(a.date) || a.date).localeCompare(String(window.__assetDateKey(b.date) || b.date));
+    });
     var dateLabels = [], evalData = [], investData = [], rateData = [];
     var histToDate = [], hIdx = 0, curr = new Date(startDate), lastPrices = {};
 
     while (curr <= today) {
         var dStr = curr.getFullYear() + "-" + (curr.getMonth()+1 < 10 ? '0' : '') + (curr.getMonth()+1) + "-" + (curr.getDate() < 10 ? '0' : '') + curr.getDate();
-        while(hIdx < sortedHist.length && sortedHist[hIdx].date <= dStr) {
+        while(hIdx < sortedHist.length && (window.__assetDateKey(sortedHist[hIdx].date) || sortedHist[hIdx].date) <= dStr) {
             histToDate.push(sortedHist[hIdx]);
             hIdx++;
         }
@@ -14186,8 +14197,8 @@ window.buildAssetDailySeries = function(cutoff, uniqueStocks) {
             var stockToPrice = {};
             for (var stock in uniqueStocks) {
                 var c = window.getTickerCode(stock);
-                if (c && window.historicalPriceCache[c] && window.historicalPriceCache[c][dStr]) {
-                    lastPrices[stock] = window.historicalPriceCache[c][dStr];
+                if (c && window.historicalPriceCache[c] && window.historicalPriceCache[c][dStr] != null && isFinite(Number(window.historicalPriceCache[c][dStr]))) {
+                    lastPrices[stock] = Number(window.historicalPriceCache[c][dStr]);
                 }
                 stockToPrice[stock] = lastPrices[stock];
             }
@@ -14691,9 +14702,14 @@ window.renderTotalAssetChart = async function() {
     chartCacheFresh = window.restoreTotalChartCache();
 
     var fetchNeededCodes = [];
+    // 캐시에 최근 며칠치만 남아 있어도 '오늘 이미 조회했다'는 플래그 때문에
+    // 10/12~10/29 같은 과거 구간이 영구적으로 비는 문제가 생기지 않도록
+    // 실제 기간 커버리지를 확인한 뒤에만 조회를 건너뛴다.
+    var coverageFrom = new Date(today);
+    coverageFrom.setDate(coverageFrom.getDate() - Math.max(count + 7, Math.ceil(count * 1.5)));
+    var coverageFromStr = coverageFrom.getFullYear() + '-' + ('0' + (coverageFrom.getMonth() + 1)).slice(-2) + '-' + ('0' + coverageFrom.getDate()).slice(-2);
     for (var i = 0; i < codes.length; i++) {
         var chartCode = codes[i];
-        if (window.__totalChartHistoryAttempts[chartCode]) continue;
         // 신주인수권 등 과거 시세를 제공하지 않는 코드는 매 기간마다 재요청하지 않는다.
         if (window.isWarrantCode && window.isWarrantCode(chartCode)) {
             window.__totalChartHistoryAttempts[chartCode] = true;
@@ -14702,8 +14718,12 @@ window.renderTotalAssetChart = async function() {
         var cachedHistory = window.historicalPriceCache[chartCode];
         // 과거 데이터가 충분히 캐시되어 있으면 앱 재실행·기간 변경 때 전체 동기화를 반복하지 않는다.
         // 오늘 날짜가 바뀌어도 마지막 시계열 값은 현재가로 덮어쓰므로, 이력 캐시는 보유량 기준으로 재사용한다.
-        if (!cachedHistory || Object.keys(cachedHistory).length < (count * 0.5)) {
+        var cachedDates = cachedHistory ? Object.keys(cachedHistory).filter(function(d) { return d >= coverageFromStr && d <= todayStr; }) : [];
+        var hasCoverage = cachedDates.length >= Math.max(8, Math.floor(count * 0.5));
+        if (!hasCoverage) {
             fetchNeededCodes.push(chartCode);
+        } else {
+            window.__totalChartHistoryAttempts[chartCode] = true;
         }
     }
 
@@ -27258,7 +27278,7 @@ function parseStockPage(html) {
 // 프록시 종류에 따라 JSON 문자열 또는 { contents: ... }로 감싸져 올 수 있다.
 function parseStockApiPage(raw) {
     var payload = raw;
-    for (var depth = 0; depth < 3; depth++) {
+    for (var depth = 0; depth < 5; depth++) {
         if (typeof payload === 'string') {
             try { payload = JSON.parse(payload); } catch (e) { return []; }
             continue;
@@ -27273,17 +27293,29 @@ function parseStockApiPage(raw) {
         }
         break;
     }
-    var rows = Array.isArray(payload) ? payload : (payload && (payload.data || payload.list || payload.result));
-    if (!Array.isArray(rows)) return [];
+    function collectRows(value, depth) {
+        if (!value || depth > 5) return [];
+        if (Array.isArray(value)) return value;
+        if (typeof value !== 'object') return [];
+        var keys = ['data', 'list', 'result', 'items', 'contents', 'trendInfos', 'dealTrendInfos', 'investorTrendInfos', 'rows'];
+        for (var i = 0; i < keys.length; i++) {
+            var child = value[keys[i]];
+            if (Array.isArray(child)) return child;
+            var nested = collectRows(child, depth + 1);
+            if (nested.length) return nested;
+        }
+        return [];
+    }
+    var rows = collectRows(payload, 0);
     var out = [];
     rows.forEach(function (row) {
         if (!row || typeof row !== 'object') return;
-        var rawDate = String(row.bizdate || row.baseDate || row.date || '').trim();
+        var rawDate = String(row.bizdate || row.baseDate || row.localDate || row.date || row.localTradedAt || '').trim();
         var dm = rawDate.match(/^(20\d\d)[-./]?(\d\d)[-./]?(\d\d)/);
         if (!dm) return;
-        var close = toNum(row.closePrice);
-        var inst = toNum(row.organPureBuyQuant);
-        var frgn = toNum(row.foreignerPureBuyQuant);
+        var close = toNum(row.closePrice != null ? row.closePrice : (row.tradePrice != null ? row.tradePrice : row.item && row.item.closePrice));
+        var inst = toNum(row.organPureBuyQuant != null ? row.organPureBuyQuant : (row.organizationPureBuyQuant != null ? row.organizationPureBuyQuant : (row.institutionPureBuyQuant != null ? row.institutionPureBuyQuant : row.institutionalPureBuyQuant)));
+        var frgn = toNum(row.foreignerPureBuyQuant != null ? row.foreignerPureBuyQuant : (row.foreignPureBuyQuant != null ? row.foreignPureBuyQuant : row.foreignerPureBuyQuantity));
         if (close == null || inst == null || frgn == null) return;
         out.push({ d: dm[1] + '-' + dm[2] + '-' + dm[3], frgn: frgn * close / 1e8, inst: inst * close / 1e8, pension: null });
     });
@@ -27315,15 +27347,62 @@ function parseIndexPage(html) {
     return out;
 }
     /* ---------- 아이템별 일별 수급 로드 ---------- */
+    function parseIndexApiPage(raw) {
+        var payload = raw;
+        for (var depth = 0; depth < 5; depth++) {
+            if (typeof payload === 'string') {
+                try { payload = JSON.parse(payload); } catch (e) { return []; }
+                continue;
+            }
+            if (payload && typeof payload.contents === 'string') { payload = payload.contents; continue; }
+            if (payload && payload.contents && typeof payload.contents === 'object') { payload = payload.contents; continue; }
+            break;
+        }
+        function rowsOf(value, depth) {
+            if (!value || depth > 5) return [];
+            if (Array.isArray(value)) return value;
+            if (typeof value !== 'object') return [];
+            var keys = ['data', 'list', 'result', 'items', 'contents', 'investorDealTrendInfos', 'trendInfos', 'rows'];
+            for (var i = 0; i < keys.length; i++) {
+                var child = value[keys[i]];
+                if (Array.isArray(child)) return child;
+                var nested = rowsOf(child, depth + 1);
+                if (nested.length) return nested;
+            }
+            return [];
+        }
+        var out = [];
+        rowsOf(payload, 0).forEach(function(row) {
+            if (!row || typeof row !== 'object') return;
+            var rawDate = String(row.bizdate || row.baseDate || row.localDate || row.date || '').trim();
+            var dm = rawDate.match(/^(20\d\d)[-./]?(\d\d)[-./]?(\d\d)/);
+            if (!dm) return;
+            var frgn = toNum(row.foreigner != null ? row.foreigner : (row.foreign != null ? row.foreign : (row.frgn != null ? row.frgn : (row.foreignerNetBuy != null ? row.foreignerNetBuy : row.foreignerPureBuy))));
+            var inst = toNum(row.organization != null ? row.organization : (row.organ != null ? row.organ : (row.inst != null ? row.inst : (row.institutionNetBuy != null ? row.institutionNetBuy : row.organizationPureBuy))));
+            if (frgn == null || inst == null) return;
+            var pension = toNum(row.pension != null ? row.pension : (row.pensionFund != null ? row.pensionFund : row.nationalPension));
+            out.push({ d: dm[1] + '-' + dm[2] + '-' + dm[3], frgn: frgn, inst: inst, pension: pension });
+        });
+        return out;
+    }
+
+    function parseIndexFlowPayload(raw) {
+        var apiRows = parseIndexApiPage(raw);
+        return apiRows.length ? apiRows : parseIndexPage(raw);
+    }
+
     async function loadFlow(item, range, onProgress, aborted, maxPages) {
         var reqs, parse;
         aborted = typeof aborted === 'function' ? aborted : function () { return false; };
         if (item.kind === 'index') {
             reqs = indexBizdates(range).map(function (b) {
                 return { key: 'i|' + item.sosok + '|' + b,
-                    url: 'https://finance.naver.com/sise/investorDealTrendDay.naver?bizdate=' + b + '&sosok=' + item.sosok };
+                    urls: [
+                        'https://stock.naver.com/api/domestic/market/trend/daily?tradeType=KRX&marketType=' + (item.sosok === '01' ? 'KOSPI' : 'KOSDAQ') + '&bizdate=' + b + '&startIdx=0&pageSize=20',
+                        'https://finance.naver.com/sise/investorDealTrendDay.naver?bizdate=' + b + '&sosok=' + item.sosok
+                    ] };
             });
-            parse = parseIndexPage;
+            parse = parseIndexFlowPayload;
         } else {
             var pages = stockPages(range);
             if (maxPages > 0) pages = pages.slice(0, maxPages);
@@ -27332,6 +27411,8 @@ function parseIndexPage(html) {
                 return { key: 's|' + item.code + '|' + p,
                     urls: [
                         'https://stock.naver.com/api/domestic/detail/' + encodeURIComponent(item.code) + '/trend?tradeType=KRX&startIdx=' + startIdx + '&pageSize=20',
+                        'https://m.stock.naver.com/api/stock/' + encodeURIComponent(item.code) + '/trend?page=' + p + '&pageSize=20',
+                        'https://m.stock.naver.com/api/stock/domestic/trend?code=' + encodeURIComponent(item.code) + '&page=' + p + '&pageSize=20',
                         'https://finance.naver.com/item/frgn.naver?code=' + encodeURIComponent(item.code) + '&page=' + p
                     ] };
             });

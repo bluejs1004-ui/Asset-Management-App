@@ -14,8 +14,8 @@ android {
         applicationId = "com.example.assets"
         minSdk = 24
         targetSdk = 36
-        versionCode = 484
-        versionName = "4.8.4"
+        versionCode = 489
+        versionName = "4.8.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

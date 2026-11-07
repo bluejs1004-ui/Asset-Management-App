@@ -5678,7 +5678,7 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
         if (modal) modal.classList.add('hidden');
     };
     window.triggerImport = function() { document.getElementById('importFile').click(); };
-    var ASSET_APP_VERSION = '4.8.4';
+    var ASSET_APP_VERSION = '4.8.9';
     var ASSET_RELEASE_URL = 'https://github.com/bluejs1004-ui/Asset-Management-App/releases/latest';
     window.getAssetAppVersion = function() {
         try {
@@ -7197,8 +7197,8 @@ window.renderTradeCalendar = function() {
             else {
                 for (var itemIndex = 0; itemIndex < report.items.length; itemIndex++) {
                     var item = report.items[itemIndex], itemSign = item.profit > 0 ? '+' : '';
-                    var dilution = item.priceDiffPct !== 0 ? '전체 평단 대비 ' + (item.priceDiffPct > 0 ? '+' : '') + item.priceDiffPct.toFixed(1) + '% ' + (item.priceDiffPct < 0 ? '유리한 진입' : '높은 진입') : '';
-                    analysisHtml += "<div class='period-range-analysis-row'><span class='period-range-analysis-stock'><button type='button' data-stock='" + tradeCalendarEscape(item.stock) + "' onclick='window.openModal(this.dataset.stock)' class='p-0 border-0 bg-transparent text-left text-neutral-200 font-bold hover:underline cursor-pointer'>" + tradeCalendarEscape(item.stock) + "</button> <span class='period-range-analysis-detail'>(" + tradeCalendarMoney(item.shares) + "주 @ " + tradeCalendarMoney(item.avgBuyPrice) + "원)" + "</span></span><span class='period-range-analysis-result font-bold tabular-nums " + (item.profit >= 0 ? 'text-rose-400' : 'text-blue-400') + "'>" + (dilution ? "<span class='period-range-analysis-benchmark mr-1'>" + tradeCalendarEscape(dilution) + "</span> " : "") + itemSign + tradeCalendarMoney(item.profit) + "원 (" + itemSign + item.rate.toFixed(2) + '%)</span></div>';
+                    var dilution = item.priceDiffPct !== 0 ? '평단 대비 ' + (item.priceDiffPct > 0 ? '+' : '') + item.priceDiffPct.toFixed(1) + '% ' + (item.priceDiffPct < 0 ? '유리한 진입' : '높은 진입') : '';
+                    analysisHtml += "<div class='period-range-analysis-row'><span class='period-range-analysis-stock'><button type='button' data-stock='" + tradeCalendarEscape(item.stock) + "' onclick='window.openModal(this.dataset.stock)' class='p-0 border-0 bg-transparent text-left text-neutral-200 font-bold hover:underline cursor-pointer'>" + tradeCalendarEscape(item.stock) + "</button> <span class='period-range-analysis-detail'>(" + tradeCalendarMoney(item.shares) + "주 @ " + tradeCalendarMoney(item.avgBuyPrice) + "원)" + "</span></span><span class='period-range-analysis-result font-bold tabular-nums " + (item.profit >= 0 ? 'text-rose-400' : 'text-blue-400') + "'>" + (dilution ? "<span class='period-range-analysis-benchmark mr-1'>" + tradeCalendarEscape(dilution) + "</span> " : "") + itemSign + tradeCalendarMoney(item.profit) + "원 (" + itemSign + item.rate.toFixed(2) + '%)' + "<span class='period-range-analysis-benchmark' style='display:block;font-weight:500'>거래대금 " + tradeCalendarMoney(item.cost || 0) + "원</span></span></div>";
                 }
             }
         }
@@ -7213,7 +7213,7 @@ window.renderTradeCalendar = function() {
         if (!realizedStocks.length) realizedHtml += "<p class='px-3 py-3 text-[10px] text-neutral-500'>해당 기간 실현손익 내역이 없습니다.</p>";
         else realizedStocks.forEach(function(stock) {
             var group = realizedGroups[stock], groupSign = group.profit > 0 ? '+' : '', groupRate = group.costBasis ? group.profit / Math.abs(group.costBasis) * 100 : 0;
-            realizedHtml += "<div class='period-range-analysis-row'><span class='period-range-analysis-stock'><button type='button' data-stock='" + tradeCalendarEscape(stock) + "' onclick='window.openModal(this.dataset.stock)' class='p-0 border-0 bg-transparent text-left text-neutral-200 font-bold hover:underline cursor-pointer'>" + tradeCalendarEscape(stock) + "</button> <span class='period-range-analysis-detail'>(" + tradeCalendarMoney(group.shares) + "주 @ " + tradeCalendarMoney(group.shares ? group.sellAmount / group.shares : 0) + "원)</span></span><span class='period-range-analysis-result font-bold tabular-nums " + (group.profit >= 0 ? 'text-rose-400' : 'text-blue-400') + "'>" + "<span class='period-range-analysis-benchmark mr-1'>전체 평단 대비 " + (groupRate > 0 ? '+' : '') + groupRate.toFixed(2) + "% 수익 실현</span> " + groupSign + tradeCalendarMoney(group.profit) + "원 (" + (groupRate > 0 ? '+' : '') + groupRate.toFixed(2) + "%)</span></div>";
+            realizedHtml += "<div class='period-range-analysis-row'><span class='period-range-analysis-stock'><button type='button' data-stock='" + tradeCalendarEscape(stock) + "' onclick='window.openModal(this.dataset.stock)' class='p-0 border-0 bg-transparent text-left text-neutral-200 font-bold hover:underline cursor-pointer'>" + tradeCalendarEscape(stock) + "</button> <span class='period-range-analysis-detail'>(" + tradeCalendarMoney(group.shares) + "주 @ " + tradeCalendarMoney(group.shares ? group.sellAmount / group.shares : 0) + "원)</span></span><span class='period-range-analysis-result font-bold tabular-nums " + (group.profit >= 0 ? 'text-rose-400' : 'text-blue-400') + "'>" + "<span class='period-range-analysis-benchmark mr-1'>평단 대비 " + (groupRate > 0 ? '+' : '') + groupRate.toFixed(2) + "% 수익 실현</span> " + groupSign + tradeCalendarMoney(group.profit) + "원 (" + (groupRate > 0 ? '+' : '') + groupRate.toFixed(2) + "%)<span class='period-range-analysis-benchmark' style='display:block;font-weight:500'>거래대금 " + tradeCalendarMoney(group.sellAmount || 0) + "원</span></span></div>";
         });
         analysisHtml += realizedHtml + '</div>';
         analysisEl.innerHTML = analysisHtml;
@@ -17369,10 +17369,10 @@ window.renderAIBriefingUI = function() {
         bData.items.forEach(function(item) {
             var itemColor = item.profit >= 0 ? 'rate-up-text' : 'rate-down-text';
             var itemSign = item.profit > 0 ? '+' : '';
-            var dilutionText = item.priceDiffPct !== 0 ? "전체 평단 대비 " + (item.priceDiffPct > 0 ? '+' : '') + item.priceDiffPct.toFixed(1) + "% " + (item.priceDiffPct < 0 ? "유리한 진입" : "높은 진입") : "";
+            var dilutionText = item.priceDiffPct !== 0 ? "평단 대비 " + (item.priceDiffPct > 0 ? '+' : '') + item.priceDiffPct.toFixed(1) + "% " + (item.priceDiffPct < 0 ? "유리한 진입" : "높은 진입") : "";
             html += "<div class='period-range-analysis-row'>" +
                 "<span class='period-range-analysis-stock'><button type='button' data-stock='" + escapeRealizedStock(item.stock) + "' onclick='window.openModal(this.dataset.stock)' class='p-0 border-0 bg-transparent text-left text-inherit font-bold hover:underline cursor-pointer'>" + escapeRealizedStock(item.stock) + "</button> <span class='period-range-analysis-detail'>(" + window.fmtNum(item.shares) + "주 @ " + window.fmtNum(item.avgBuyPrice) + "원)</span></span>" +
-                "<span class='period-range-analysis-result tabular-nums font-bold " + itemColor + "'>" + (dilutionText ? "<span class='period-range-analysis-benchmark mr-1'>" + dilutionText + "</span> " : "") + itemSign + window.fmtNum(item.profit) + "원 (" + itemSign + item.rate.toFixed(2) + "%)</span>" +
+                "<span class='period-range-analysis-result tabular-nums font-bold " + itemColor + "'>" + (dilutionText ? "<span class='period-range-analysis-benchmark mr-1'>" + dilutionText + "</span> " : "") + itemSign + window.fmtNum(item.profit) + "원 (" + itemSign + item.rate.toFixed(2) + "%)<span class='period-range-analysis-benchmark' style='display:block;font-weight:500'>거래대금 " + window.fmtNum(item.cost || 0) + "원</span></span>" +
             "</div>";
         });
         html += "</div>";
@@ -17386,7 +17386,7 @@ window.renderAIBriefingUI = function() {
             var itemSign = item.profit > 0 ? '+' : '';
             html += "<div class='period-range-analysis-row'>" +
                 "<span class='period-range-analysis-stock'><button type='button' data-stock='" + escapeRealizedStock(item.stock) + "' onclick='window.openModal(this.dataset.stock)' class='p-0 border-0 bg-transparent text-left text-inherit font-bold hover:underline cursor-pointer'>" + escapeRealizedStock(item.stock) + "</button> <span class='period-range-analysis-detail'>(" + window.fmtNum(item.shares) + "주 @ " + window.fmtNum(item.sellAvgPrice) + "원)</span></span>" +
-                "<span class='period-range-analysis-result tabular-nums font-bold " + itemColor + "'>" + "<span class='period-range-analysis-benchmark mr-1'>전체 평단 대비 " + (item.rate > 0 ? '+' : '') + Number(item.rate || 0).toFixed(2) + "% 수익 실현</span> " + itemSign + window.fmtNum(item.profit) + "원 (" + (item.profit > 0 ? '+' : '') + Number(item.rate || 0).toFixed(2) + "%)</span>" +
+                "<span class='period-range-analysis-result tabular-nums font-bold " + itemColor + "'>" + "<span class='period-range-analysis-benchmark mr-1'>평단 대비 " + (item.rate > 0 ? '+' : '') + Number(item.rate || 0).toFixed(2) + "% 수익 실현</span> " + itemSign + window.fmtNum(item.profit) + "원 (" + (item.profit > 0 ? '+' : '') + Number(item.rate || 0).toFixed(2) + "%)<span class='period-range-analysis-benchmark' style='display:block;font-weight:500'>거래대금 " + window.fmtNum(item.sellAmount || 0) + "원</span></span>" +
             "</div>";
         });
         html += "</div>";
@@ -19872,6 +19872,7 @@ else restoreInitialAIPanels();
                 <p class="text-[10px] text-neutral-500 mt-2 leading-relaxed fs-hide-target">
                     선택 기간의 <b class="text-neutral-400">일별 순매수를 누적</b>한 금액(억원)입니다. 0에서 시작해 올라가면 순매수, 내려가면 순매도입니다.
                 </p>
+                <div id="flowCoverageNote" class="hidden text-[10px] text-amber-400 mt-1 leading-relaxed"></div>
             </div>
         </div>
 
@@ -26177,7 +26178,7 @@ window.toggleTheme = function () {
     var cmpInited = false;
 
     /* -------------- 공용 fetch (워커 ➔ allorigins ➔ codetabs) -------------- */
-    async function proxyFetch(url, ms) {
+    async function proxyFetch(url, ms, diag) {
         var workerUrl = '';
         try { workerUrl = localStorage.getItem('v55_worker_url') || ''; } catch (e) {}
         var proxies = ['https://api.allorigins.win/raw?url=', 'https://api.codetabs.com/v1/proxy?quest='];
@@ -26193,11 +26194,11 @@ window.toggleTheme = function () {
             try {
                 var res = await fetch(urls[i], { signal: controller.signal });
                 clearTimeout(tid);
-                if (!res.ok) continue;
+                if (!res.ok) { if (diag) diag.log.push(((workerUrl && i === 0) ? '워커' : ((i - (workerUrl ? 1 : 0)) === 0 ? 'allorigins' : 'codetabs')) + ' HTTP ' + res.status); continue; }
                 var text = await res.text();
                 try { var j = JSON.parse(text); if (j && typeof j.contents === 'string') text = j.contents; } catch (e) {}
                 return text;
-            } catch (e) { clearTimeout(tid); continue; }
+            } catch (e) { clearTimeout(tid); if (diag) diag.log.push(((workerUrl && i === 0) ? '워커' : ((i - (workerUrl ? 1 : 0)) === 0 ? 'allorigins' : 'codetabs')) + ' ' + (e && e.name === 'AbortError' ? '시간초과' : '네트워크오류')); continue; }
         }
         return null;
     }
@@ -27278,6 +27279,8 @@ window.toggleTheme = function () {
     window.flowHiddenItems = {}; // 범례에서 숨긴 종목을 차트 재렌더링에도 유지
     window.__flowCache = {}; // 페이지 단위 10분 캐시 (차트와 AI 브리핑이 함께 재사용)
     window.__flowPending = {};
+    window.__flowDiag = {};        // 요청별 실패 사유
+    window.__flowDiagSummary = {}; // 종목·기간별 성공/실패 요약
     window.__flowSeq = 0;
     var flowInited = false;
     function pad2(n) { return (n < 10 ? '0' : '') + n; }
@@ -27303,7 +27306,8 @@ window.toggleTheme = function () {
     }
     // 지수는 bizdate 로만 거슬러 올라간다. 한 번에 10거래일(=14일)이라 14일씩 물러나며 병렬로 받는다.
     function indexBizdates(range) {
-        var calls = Math.ceil(RANGES[range].td / 10) + 1, out = [], d = new Date();
+        // 한 요청이 14일을 물러나므로 거래일 수가 아니라 '일수' 기준으로 필요한 요청 수를 잡아야 3Y 같은 긴 기간이 끝까지 채워진다.
+        var calls = Math.ceil(RANGES[range].days / 14) + 1, out = [], d = new Date();
         for (var i = 0; i < calls; i++) {
             out.push(d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()));
             d.setDate(d.getDate() - 14);
@@ -27464,7 +27468,11 @@ function parseIndexPage(html) {
         aborted = typeof aborted === 'function' ? aborted : function () { return false; };
         if (item.kind === 'index') {
             reqs = indexBizdates(range).map(function (b) {
+                var bizIso = b.slice(0, 4) + '-' + b.slice(4, 6) + '-' + b.slice(6, 8);
                 return { key: 'i|' + item.sosok + '|' + b,
+                    // 응답의 가장 최신 날짜가 요청한 bizdate 보다 뒤라면 bizdate 를 무시하고 '최신 데이터'만 돌려준 것이다.
+                    // 그대로 쓰면 같은 최근 구간만 반복해서 쌓여 기간이 늘어나지 않으므로 다음 소스로 넘어간다.
+                    valid: function (rows) { return newestFlowDate(rows) <= bizIso; },
                     urls: [
                         'https://stock.naver.com/api/domestic/market/trend/daily?tradeType=KRX&marketType=' + (item.sosok === '01' ? 'KOSPI' : 'KOSDAQ') + '&bizdate=' + b + '&startIdx=0&pageSize=20',
                         'https://finance.naver.com/sise/investorDealTrendDay.naver?bizdate=' + b + '&sosok=' + item.sosok
@@ -27476,7 +27484,12 @@ function parseIndexPage(html) {
             if (maxPages > 0) pages = pages.slice(0, maxPages);
             reqs = pages.map(function (p) {
                 var startIdx = (p - 1) * 20;
+                // p 페이지의 첫 행은 최신일로부터 20*(p-1) 거래일 이전이며, 20거래일은 최소 28일이므로
+                // 그보다 최근 날짜가 오면 페이지 파라미터가 무시된 응답(1페이지 반복)이다.
+                var lim = new Date(); lim.setDate(lim.getDate() - 28 * (p - 1) + 2);
+                var limIso = ymd(lim);
                 return { key: 's|' + item.code + '|' + p,
+                    valid: p <= 1 ? null : function (rows) { return newestFlowDate(rows) <= limIso; },
                     urls: [
                         'https://stock.naver.com/api/domestic/detail/' + encodeURIComponent(item.code) + '/trend?tradeType=KRX&startIdx=' + startIdx + '&pageSize=20',
                         'https://m.stock.naver.com/api/stock/' + encodeURIComponent(item.code) + '/trend?page=' + p + '&pageSize=20',
@@ -27494,12 +27507,17 @@ function parseIndexPage(html) {
                 if (cached) delete window.__flowCache[r.key];
                 if (window.__flowPending[r.key]) return window.__flowPending[r.key];
                 var urls = r.urls || [r.url];
+                var dlines = window.__flowDiag[r.key] = [];
                 var attempt = function (index) {
                     if (index >= urls.length) return Promise.resolve(null);
-                    return window.__proxyFetch(urls[index], 9000).then(function (payload) {
-                        if (!payload) return attempt(index + 1);
+                    var tag = flowUrlTag(urls[index]);
+                    var dg = { log: [] };
+                    return window.__proxyFetch(urls[index], 9000, dg).then(function (payload) {
+                        if (!payload) { dlines.push(tag + ' → 응답 없음 [' + dg.log.join(', ') + ']'); return attempt(index + 1); }
                         var rows = parse(payload);
-                        return rows.length ? rows : attempt(index + 1);
+                        if (!rows.length) { dlines.push(tag + ' → 파싱 0건, 응답 앞부분: ' + String(payload).replace(/\s+/g, ' ').slice(0, 70)); return attempt(index + 1); }
+                        if (r.valid && !r.valid(rows)) { dlines.push(tag + ' → 페이지/기준일 무시됨(최신 ' + newestFlowDate(rows) + ')'); return attempt(index + 1); }
+                        return rows;
                     }).catch(function () { return attempt(index + 1); });
                 };
                 var tracked = attempt(0).then(function (rows) {
@@ -27515,9 +27533,35 @@ function parseIndexPage(html) {
             };
         });
         var results = await runBatched(thunks, onProgress, aborted);
+        // 무료 프록시는 일시적으로 실패하는 일이 잦아, 실패한 페이지만 한 번 더 시도한다.
+        var retryIdx = [];
+        results.forEach(function (rows, i) { if (!rows || !rows.length) retryIdx.push(i); });
+        if (retryIdx.length && !aborted()) {
+            var retried = await runBatched(retryIdx.map(function (i) { return thunks[i]; }), null, aborted);
+            retryIdx.forEach(function (i, k) { results[i] = retried[k]; });
+        }
+        var okCnt = 0, failLines = [];
+        reqs.forEach(function (r, i) {
+            if (results[i] && results[i].length) okCnt++;
+            else failLines.push(flowReqLabel(r.key) + ': ' + ((window.__flowDiag[r.key] || []).join(' | ') || '중단됨'));
+        });
+        window.__flowDiagSummary[item.code + '|' + range] = { total: reqs.length, ok: okCnt, fail: failLines };
         var all = [];
         results.forEach(function (rows) { if (rows) all = all.concat(rows); });
         return all;
+    }
+    function flowUrlTag(u) {
+        var m = String(u).match(/^https?:\/\/([^\/?]+)(\/[^?]*)?/);
+        return m ? (m[1] + (m[2] ? m[2].replace(/\/\d{6}\//, '/{코드}/') : '')) : String(u).slice(0, 40);
+    }
+    function flowReqLabel(key) {
+        var a = String(key).split('|');
+        return a[0] === 's' ? ('페이지 ' + a[2]) : ('기준일 ' + a[2]);
+    }
+    function newestFlowDate(rows) {
+        var m = '';
+        for (var i = 0; i < rows.length; i++) if (rows[i].d > m) m = rows[i].d;
+        return m;
     }
 
     function finiteFlowNumber(value) {
@@ -27870,6 +27914,50 @@ function parseIndexPage(html) {
         }
         if (aborted()) return;
         setStatus('');
+
+        // 요청 기간 대비 실제로 받아온 범위 점검 (앞쪽이 비었거나 중간이 끊긴 경우 안내)
+        (function () {
+            var note = document.getElementById('flowCoverageNote');
+            if (!note) return;
+            var msgs = [];
+            var edge = new Date(from.getTime()); edge.setDate(edge.getDate() + 14);
+            var edgeStr = ymd(edge);
+            series.forEach(function (s, i) {
+                var nm = window.flowItems[i].label;
+                if (!s.days.length) { msgs.push(nm + ': 데이터 없음'); return; }
+                if (RANGES[range].days > 40 && s.days[0] > edgeStr) msgs.push(nm + ': ' + s.days[0] + ' 이후만 조회됨');
+                var maxGap = 0;
+                for (var k = 1; k < s.days.length; k++) {
+                    var g = (new Date(s.days[k]) - new Date(s.days[k - 1])) / 86400000;
+                    if (g > maxGap) maxGap = g;
+                }
+                if (maxGap > 12) msgs.push(nm + ': 중간 ' + Math.round(maxGap) + '일 구간 누락');
+            });
+            if (msgs.length) {
+                note.textContent = '';
+                var head = document.createElement('div');
+                head.textContent = '일부 구간을 불러오지 못했습니다 (' + msgs.join(' / ') + ').';
+                note.appendChild(head);
+                var lines = [];
+                window.flowItems.forEach(function (it) {
+                    var sm = window.__flowDiagSummary[it.code + '|' + range];
+                    if (!sm) return;
+                    lines.push(it.label + ' ' + range + ': ' + sm.ok + '/' + sm.total + ' 요청 성공');
+                    sm.fail.slice(0, 6).forEach(function (f) { lines.push('  ' + f); });
+                    if (sm.fail.length > 6) lines.push('  … 외 ' + (sm.fail.length - 6) + '건');
+                });
+                var det = document.createElement('details');
+                var sum = document.createElement('summary');
+                sum.textContent = '진단 정보 보기';
+                sum.style.cursor = 'pointer';
+                var pre = document.createElement('pre');
+                pre.className = 'text-neutral-400 mt-1';
+                pre.style.whiteSpace = 'pre-wrap'; pre.style.wordBreak = 'break-all';
+                pre.textContent = lines.join('\n') || '진단 기록 없음';
+                det.appendChild(sum); det.appendChild(pre); note.appendChild(det);
+                note.classList.remove('hidden');
+            } else { note.textContent = ''; note.classList.add('hidden'); }
+        })();
 
         // 날짜 라벨 합집합
         var labelSet = {};

@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to build, for example v4.9.1"
+        required: true
+        default: "v4.9.1"
 
 permissions:
   contents: write
@@ -50,7 +55,12 @@ jobs:
         id: apk
         shell: bash
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            version="${{ inputs.release_tag }}"
+            version="${version#v}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
           if [ "$version" = "$GITHUB_REF_NAME" ]; then version="4.9.1-${GITHUB_RUN_NUMBER}"; fi
           apk_path="$(find app/build/outputs -type f -name '*.apk' -print -quit)"
           test -n "$apk_path" || (echo "Release APK not found under app/build/outputs"; find app/build/outputs -type f -maxdepth 6 -print; exit 1)

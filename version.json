@@ -1,5 +1,5 @@
 {
-  "latestVersion": "4.8.9",
-  "downloadUrl": "https://github.com/bluejs1004-ui/Asset-Management-App/releases/download/v4.8.9/Asset_v4.8.9.apk",
-  "changelog": "v4.8.9 외국인·기관 수급 장기(3M~3Y) 조회 보완, 평단 대비·거래대금 표기 개선"
+  "latestVersion": "4.9.0",
+  "downloadUrl": "https://github.com/bluejs1004-ui/Asset-Management-App/releases/download/v4.9.0/Asset_v4.9.0.apk",
+  "changelog": "v4.9.0 외국인·기관 수급 3M~3Y 조회 복구(요청 방식 자동 탐색), 수급 진단 정보 추가"
 }

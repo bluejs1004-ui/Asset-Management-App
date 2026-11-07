@@ -5678,7 +5678,7 @@ body.light-mode #chartSubSel option { background-color: #ffffff; color: #0f172a;
         if (modal) modal.classList.add('hidden');
     };
     window.triggerImport = function() { document.getElementById('importFile').click(); };
-    var ASSET_APP_VERSION = '4.8.9';
+    var ASSET_APP_VERSION = '4.9.0';
     var ASSET_RELEASE_URL = 'https://github.com/bluejs1004-ui/Asset-Management-App/releases/latest';
     window.getAssetAppVersion = function() {
         try {
@@ -26194,7 +26194,12 @@ window.toggleTheme = function () {
             try {
                 var res = await fetch(urls[i], { signal: controller.signal });
                 clearTimeout(tid);
-                if (!res.ok) { if (diag) diag.log.push(((workerUrl && i === 0) ? '워커' : ((i - (workerUrl ? 1 : 0)) === 0 ? 'allorigins' : 'codetabs')) + ' HTTP ' + res.status); continue; }
+                if (!res.ok) {
+                    if (diag) diag.log.push(((workerUrl && i === 0) ? '워커' : ((i - (workerUrl ? 1 : 0)) === 0 ? 'allorigins' : 'codetabs')) + ' HTTP ' + res.status);
+                    // 원본 서버가 '없는 주소/잘못된 요청'이라고 답한 것이므로 공개 프록시로 재시도해 봐야 시간만 낭비된다.
+                    if (diag && diag.fast4xx && workerUrl && i === 0 && (res.status === 404 || res.status === 400)) return null;
+                    continue;
+                }
                 var text = await res.text();
                 try { var j = JSON.parse(text); if (j && typeof j.contents === 'string') text = j.contents; } catch (e) {}
                 return text;
@@ -27463,6 +27468,75 @@ function parseIndexPage(html) {
         return apiRows.length ? apiRows : parseIndexPage(raw);
     }
 
+    /* ---------- 종목 일별 수급: 이전 구간을 요청하는 방식 탐색 ----------
+       m.stock.naver.com/api/stock/{코드}/trend 는 page= 파라미터를 무시한다(진단으로 확인됨).
+       어떤 파라미터가 먹는지는 문서가 없어, 처음 한 번 후보를 차례로 시험해 통하는 것을 고른다. */
+    var STOCK_TREND = 'https://m.stock.naver.com/api/stock/';
+    var STOCK_VARIANTS = [
+        { id: 'bizdate', byDate: true, url: function (c, p, b, st) { return STOCK_TREND + c + '/trend?pageSize=20&bizdate=' + b; } },
+        { id: 'dates', byDate: true, url: function (c, p, b, st) { return STOCK_TREND + c + '/trend?pageSize=20&startDate=' + st + '&endDate=' + b; } },
+        { id: 'startIdx', url: function (c, p) { return STOCK_TREND + c + '/trend?pageSize=20&startIdx=' + ((p - 1) * 20); } },
+        { id: 'offset', url: function (c, p) { return STOCK_TREND + c + '/trend?pageSize=20&offset=' + ((p - 1) * 20); } },
+        { id: 'pageNo', url: function (c, p) { return STOCK_TREND + c + '/trend?pageSize=20&pageNo=' + p; } },
+        { id: 'big', big: true, url: function (c) { return STOCK_TREND + c + '/trend?pageSize=60'; } }
+    ];
+    function findStockVariant(id) {
+        for (var i = 0; i < STOCK_VARIANTS.length; i++) if (STOCK_VARIANTS[i].id === id) return STOCK_VARIANTS[i];
+        return null;
+    }
+    function compactYmd(d) { return d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()); }
+    function stockDateStops(range) {
+        var calls = Math.ceil(RANGES[range].days / 21) + 1, out = [], d = new Date();
+        for (var i = 0; i < calls; i++) {
+            var st = new Date(d.getTime()); st.setDate(st.getDate() - 21);
+            out.push({ b: compactYmd(d), s: compactYmd(st), iso: ymd(d) });
+            d.setDate(d.getDate() - 21);
+        }
+        return out;
+    }
+    async function probeStockVariant(code, aborted) {
+        var st = window.__flowStockVariant;
+        // 못 찾은 결과('none')는 일시적 실패일 수 있어 2분만 기억한다.
+        if (st && (st !== 'none' || Date.now() - (window.__flowStockVariantAt || 0) < 120000)) return st === 'none' ? null : st;
+        if (window.__flowProbePromise) return window.__flowProbePromise;
+        var enc = encodeURIComponent(code);
+        window.__flowProbePromise = (async function () {
+            var log = [], found = null;
+            var back = new Date(); back.setDate(back.getDate() - 21);
+            var backStart = new Date(back.getTime()); backStart.setDate(backStart.getDate() - 21);
+            var pageLim = new Date(); pageLim.setDate(pageLim.getDate() - 26);
+            for (var i = 0; i < STOCK_VARIANTS.length && !found; i++) {
+                var v = STOCK_VARIANTS[i];
+                var url = v.big ? v.url(enc) : (v.byDate ? v.url(enc, 0, compactYmd(back), compactYmd(backStart)) : v.url(enc, 2));
+                var dg = { log: [], fast4xx: true };
+                var payload = null;
+                try { payload = await window.__proxyFetch(url, 9000, dg); } catch (e) { payload = null; }
+                if (!payload) { log.push(v.id + ': 응답 없음 [' + dg.log.join(', ') + ']'); continue; }
+                var rows = parseStockFlowPayload(payload);
+                if (!rows.length) { log.push(v.id + ': 파싱 0건 · ' + String(payload).replace(/\s+/g, ' ').slice(0, 70)); continue; }
+                var newest = newestFlowDate(rows), oldest = rows.reduce(function (m, r) { return (!m || r.d < m) ? r.d : m; }, '');
+                var ok = v.big ? rows.length > 20 : (v.byDate ? newest <= ymd(back) : newest <= ymd(pageLim));
+                if (ok) { log.push(v.id + ': 사용 가능 (' + rows.length + '건, ' + oldest + ' ~ ' + newest + ')'); found = v.id; }
+                else log.push(v.id + ': ' + (v.big ? 'pageSize 무시됨(' + rows.length + '건)' : '파라미터 무시됨(최신 ' + newest + ')'));
+            }
+            if (!found) {
+                // 예전 PC 페이지가 아직 쓸 만한지 구조만 기록해 둔다(다음 수정의 단서).
+                try {
+                    var html = await window.__proxyFetch('https://finance.naver.com/item/frgn.naver?code=' + enc + '&page=2', 9000, { log: [], fast4xx: true });
+                    if (html) {
+                        var t = String(html);
+                        log.push('frgn.naver 구조: 길이 ' + t.length + ', tr ' + (t.match(/<tr/g) || []).length + ', 날짜패턴 ' + (t.match(/20\d\d\.\d\d\.\d\d/g) || []).length + ', td.num ' + (t.match(/class=\"[^\"]*num/g) || []).length + ', script ' + (t.match(/<script/g) || []).length);
+                    } else log.push('frgn.naver: 응답 없음');
+                } catch (e) { log.push('frgn.naver: 오류'); }
+            }
+            window.__flowProbeLog = log;
+            window.__flowStockVariant = found || 'none';
+            window.__flowStockVariantAt = Date.now();
+            return found;
+        })();
+        try { return await window.__flowProbePromise; } finally { window.__flowProbePromise = null; }
+    }
+
     async function loadFlow(item, range, onProgress, aborted, maxPages) {
         var reqs, parse;
         aborted = typeof aborted === 'function' ? aborted : function () { return false; };
@@ -27482,21 +27556,37 @@ function parseIndexPage(html) {
         } else {
             var pages = stockPages(range);
             if (maxPages > 0) pages = pages.slice(0, maxPages);
-            reqs = pages.map(function (p) {
-                var startIdx = (p - 1) * 20;
-                // p 페이지의 첫 행은 최신일로부터 20*(p-1) 거래일 이전이며, 20거래일은 최소 28일이므로
-                // 그보다 최근 날짜가 오면 페이지 파라미터가 무시된 응답(1페이지 반복)이다.
-                var lim = new Date(); lim.setDate(lim.getDate() - 28 * (p - 1) + 2);
-                var limIso = ymd(lim);
-                return { key: 's|' + item.code + '|' + p,
-                    valid: p <= 1 ? null : function (rows) { return newestFlowDate(rows) <= limIso; },
-                    urls: [
-                        'https://stock.naver.com/api/domestic/detail/' + encodeURIComponent(item.code) + '/trend?tradeType=KRX&startIdx=' + startIdx + '&pageSize=20',
-                        'https://m.stock.naver.com/api/stock/' + encodeURIComponent(item.code) + '/trend?page=' + p + '&pageSize=20',
-                        'https://m.stock.naver.com/api/stock/domestic/trend?code=' + encodeURIComponent(item.code) + '&page=' + p + '&pageSize=20',
-                        'https://finance.naver.com/item/frgn.naver?code=' + encodeURIComponent(item.code) + '&page=' + p
-                    ] };
-            });
+            var encCode = encodeURIComponent(item.code);
+            // 2페이지 이상이 필요할 때만, 이 서버가 실제로 받아들이는 '이전 구간 요청 방식'을 한 번 탐색한다.
+            var variantId = pages.length > 1 ? await probeStockVariant(item.code, aborted) : null;
+            var variant = findStockVariant(variantId);
+            if (variant && variant.big) {
+                // pageSize 만 먹는 서버: 필요한 행 수를 한 번에 요청하고, 상한에 걸리면 작은 값으로 내려간다.
+                var need = Math.min(1000, RANGES[range].td + 40);
+                var sizes = [need, 500, 300, 100, 60].filter(function (n, i, a) { return n <= need && a.indexOf(n) === i; });
+                reqs = [{ key: 's|' + item.code + '|big|' + need,
+                    urls: sizes.map(function (n) { return STOCK_TREND + encCode + '/trend?pageSize=' + n; }) }];
+            } else if (variant && variant.byDate) {
+                // 기준일(bizdate)로 거슬러 올라가는 서버: 21일씩 물러나며 받는다(겹치는 날은 누적 단계에서 합쳐진다).
+                reqs = stockDateStops(range).map(function (stop) {
+                    return { key: 's|' + item.code + '|d|' + stop.b,
+                        valid: function (rows) { return newestFlowDate(rows) <= stop.iso; },
+                        urls: [variant.url(encCode, 0, stop.b, stop.s)] };
+                });
+            } else if (variant) {
+                reqs = pages.map(function (p) {
+                    // p 페이지의 첫 행은 최신일로부터 20*(p-1) 거래일 이전이며, 20거래일은 최소 28일이므로
+                    // 그보다 최근 날짜가 오면 페이지 파라미터가 무시된 응답(1페이지 반복)이다.
+                    var lim = new Date(); lim.setDate(lim.getDate() - 28 * (p - 1) + 2);
+                    var limIso = ymd(lim);
+                    return { key: 's|' + item.code + '|' + variant.id + '|' + p,
+                        valid: p <= 1 ? null : function (rows) { return newestFlowDate(rows) <= limIso; },
+                        urls: [variant.url(encCode, p)] };
+                });
+            } else {
+                // 통하는 방식을 못 찾았거나 1페이지만 필요한 경우: 최근 20거래일만 받는다.
+                reqs = [{ key: 's|' + item.code + '|1', urls: [STOCK_TREND + encCode + '/trend?page=1&pageSize=20'] }];
+            }
             parse = parseStockFlowPayload;
         }
         var thunks = reqs.map(function (r) {
@@ -27511,7 +27601,7 @@ function parseIndexPage(html) {
                 var attempt = function (index) {
                     if (index >= urls.length) return Promise.resolve(null);
                     var tag = flowUrlTag(urls[index]);
-                    var dg = { log: [] };
+                    var dg = { log: [], fast4xx: true };
                     return window.__proxyFetch(urls[index], 9000, dg).then(function (payload) {
                         if (!payload) { dlines.push(tag + ' → 응답 없음 [' + dg.log.join(', ') + ']'); return attempt(index + 1); }
                         var rows = parse(payload);
@@ -27545,7 +27635,7 @@ function parseIndexPage(html) {
             if (results[i] && results[i].length) okCnt++;
             else failLines.push(flowReqLabel(r.key) + ': ' + ((window.__flowDiag[r.key] || []).join(' | ') || '중단됨'));
         });
-        window.__flowDiagSummary[item.code + '|' + range] = { total: reqs.length, ok: okCnt, fail: failLines };
+        window.__flowDiagSummary[item.code + '|' + range] = { total: reqs.length, ok: okCnt, fail: failLines, probe: item.kind === 'index' ? [] : (window.__flowProbeLog || []).slice() };
         var all = [];
         results.forEach(function (rows) { if (rows) all = all.concat(rows); });
         return all;
@@ -27945,6 +28035,10 @@ function parseIndexPage(html) {
                     lines.push(it.label + ' ' + range + ': ' + sm.ok + '/' + sm.total + ' 요청 성공');
                     sm.fail.slice(0, 6).forEach(function (f) { lines.push('  ' + f); });
                     if (sm.fail.length > 6) lines.push('  … 외 ' + (sm.fail.length - 6) + '건');
+                    if (sm.probe && sm.probe.length && (sm.fail.length || msgs.length)) {
+                        lines.push('  요청 방식 탐색 결과:');
+                        sm.probe.forEach(function (pl) { lines.push('    ' + pl); });
+                    }
                 });
                 var det = document.createElement('details');
                 var sum = document.createElement('summary');

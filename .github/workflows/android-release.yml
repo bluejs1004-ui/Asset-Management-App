@@ -54,6 +54,7 @@ jobs:
       - name: Name APK asset
         id: apk
         shell: bash
+        working-directory: AndroidStudioProjects/Assets
         run: |
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             version="${{ inputs.release_tag }}"

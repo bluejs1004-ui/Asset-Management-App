@@ -67,9 +67,11 @@ jobs:
           test -n "$apk_path" || (echo "Release APK not found under app/build/outputs"; find app/build/outputs -type f -maxdepth 6 -print; exit 1)
           cp "$apk_path" "${GITHUB_WORKSPACE}/Asset_v${version}.apk"
           echo "path=Asset_v${version}.apk" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          tag_name: ${{ steps.apk.outputs.tag }}
           files: ${{ steps.apk.outputs.path }}

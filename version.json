@@ -1,5 +1,5 @@
 {
-  "latestVersion": "4.8.1",
-  "downloadUrl": "https://github.com/bluejs1004-ui/Asset-Management-App/releases/download/v4.8.1/Asset_v4.8.1.apk",
-  "changelog": "v4.8.1 자산 추이 누락 보정 및 외국인·기관 수급 API 수정"
+  "latestVersion": "4.9.1",
+  "downloadUrl": "https://github.com/bluejs1004-ui/Asset-Management-App/releases/download/v4.9.1/Asset_v4.9.1.apk",
+  "changelog": "v4.9.1 태블릿·DeX 종목 상세 모달 상단바 가림 문제 수정 및 최신 Android 프로젝트 반영"
 }

@@ -50,8 +50,8 @@ jobs:
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
-          if [ "$version" = "$GITHUB_REF_NAME" ]; then version="4.8.1-${GITHUB_RUN_NUMBER}"; fi
-          cp AndroidStudioProjects/Assets/app/build/outputs/apk/release/app-release.apk "Asset_v${version}.apk"
+          if [ "$version" = "$GITHUB_REF_NAME" ]; then version="4.9.1-${GITHUB_RUN_NUMBER}"; fi
+          cp app/build/outputs/apk/release/app-release.apk "${GITHUB_WORKSPACE}/Asset_v${version}.apk"
           echo "path=Asset_v${version}.apk" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release
